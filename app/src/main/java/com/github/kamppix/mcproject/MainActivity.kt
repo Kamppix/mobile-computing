@@ -66,18 +66,6 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun VerticallyCentered(
-    item: @Composable () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxHeight(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        item()
-    }
-}
-
-@Composable
 fun AppLayout(
     topBarContentLeft: @Composable () -> Unit = {},
     topBarContentRight: @Composable () -> Unit = {},
@@ -109,6 +97,18 @@ fun AppLayout(
             }
         }
         content()
+    }
+}
+
+@Composable
+fun VerticalCenter(
+    item: @Composable () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxHeight(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        item()
     }
 }
 
@@ -163,7 +163,7 @@ fun MessageCard(msg: Message) {
 }
 
 @Composable
-fun Conversation(messages: List<Message>) {
+fun Chat(messages: List<Message>) {
     LazyColumn {
         items(messages) { message ->
             MessageCard(message)
@@ -178,14 +178,14 @@ fun ChatScreen(
 ) {
     AppLayout(
         topBarContentRight = {
-            VerticallyCentered {
+            VerticalCenter {
                 IconButton(onClick = onNavigateToSettings) {
                     Icon(Icons.Default.Settings, "Settings")
                 }
             }
         }
     ) {
-        Conversation(messages)
+        Chat(messages)
     }
 }
 
@@ -243,7 +243,7 @@ fun SettingsScreen(
 ) {
     AppLayout(
         topBarContentLeft = {
-            VerticallyCentered {
+            VerticalCenter {
                 IconButton(onClick = onNavigateToChat) {
                     Icon(Icons.AutoMirrored.Default.ArrowBack, "Back")
                 }
@@ -255,34 +255,34 @@ fun SettingsScreen(
 }
 
 @Serializable
-object Chat
+object ChatDest
 @Serializable
-object Settings
+object SettingsDest
 
 @Composable
 fun AppNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: Any = Chat
+    startDestination: Any = ChatDest
     ) {
     NavHost(
         modifier = modifier,
         navController = navController,
         startDestination = startDestination
     ) {
-        composable<Chat> {
+        composable<ChatDest> {
             ChatScreen(
                 SampleData.conversationSample,
                 onNavigateToSettings = {
-                    navController.navigate(route = Settings)
+                    navController.navigate(route = SettingsDest)
                 }
             )
         }
-        composable<Settings> {
+        composable<SettingsDest> {
             SettingsScreen(
                 onNavigateToChat = {
-                    navController.navigate(route = Chat) {
-                        popUpTo(Chat) { inclusive = true }
+                    navController.navigate(route = ChatDest) {
+                        popUpTo(ChatDest) { inclusive = true }
                     }
                 }
             )
@@ -309,10 +309,10 @@ fun PreviewMessageCard() {
 
 @Preview
 @Composable
-fun PreviewConversation() {
+fun PreviewChat() {
     MCProjectTheme {
         Surface {
-            Conversation(
+            Chat(
                 SampleData.conversationSample
             )
         }
