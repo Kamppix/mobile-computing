@@ -152,24 +152,24 @@ fun PreviewMessageCard() {
     }
 }
 
-@Preview
-@Composable
-fun PreviewChat() {
-    MCProjectTheme {
-        Surface {
-            Chat(
-                SampleData.conversationSample
-            )
-        }
-    }
-}
+//@Preview
+//@Composable
+//fun PreviewChat() {
+//    MCProjectTheme {
+//        Surface {
+//            Chat(
+//                SampleData.conversationSample
+//            )
+//        }
+//    }
+//}
 
-@Preview
-@Composable
-fun PreviewProfileSettings() {
-    MCProjectTheme {
-        Surface {
-            ProfileSettings()
-        }
-    }
-}
+//@Preview
+//@Composable
+//fun PreviewProfileSettings() {
+//    MCProjectTheme {
+//        Surface {
+//            ProfileSettings()
+//        }
+//    }
+//}
