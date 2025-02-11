@@ -1,10 +1,13 @@
 package com.github.kamppix.mcproject
 
 import SampleData
-import android.content.res.Configuration
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,11 +20,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,7 +42,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            InitProfileName()
             MCProjectTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppNavHost()
@@ -81,13 +87,6 @@ fun AppLayout(
 }
 
 @Composable
-fun InitProfileName() {
-    val context = LocalContext.current
-    val nameFile = File(context.filesDir, "profileName")
-    if (!nameFile.exists()) nameFile.writeBytes("User".toByteArray())
-}
-
-@Composable
 fun VerticalCenter(
     item: @Composable () -> Unit
 ) {
@@ -110,6 +109,37 @@ fun AppNavHost(
     navController: NavHostController = rememberNavController(),
     startDestination: Any = ChatDest
     ) {
+    val context = LocalContext.current
+
+    // Init name
+    val nameFile = File(context.filesDir, "profileName")
+    if (!nameFile.exists()) nameFile.writeBytes("User".toByteArray())
+    var profileName by remember { mutableStateOf(nameFile.readBytes().decodeToString()) }
+
+    // Init picture
+    val pictureUriFile = File(context.filesDir, "profilePictureUri")
+    if (!pictureUriFile.exists()) pictureUriFile.writeBytes("".toByteArray())
+    var profilePicture by remember { mutableStateOf(pictureUriFile.readBytes().decodeToString()) }
+
+    val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            // Delete old picture if exists
+            val oldFile = File(Uri.parse(profilePicture).path ?: "")
+            if (oldFile.exists()) oldFile.delete()
+
+            // Copy picked image to new file location
+            val resolver = context.contentResolver
+            val newFile = File(context.filesDir, "pfp-${System.currentTimeMillis()}")
+            resolver.openInputStream(uri).use { stream ->
+                stream?.copyTo(newFile.outputStream())
+            }
+
+            // Write new picture URI to file
+            pictureUriFile.writeBytes(newFile.toUri().toString().toByteArray())
+            profilePicture = pictureUriFile.readBytes().decodeToString()
+        }
+    }
+
     NavHost(
         modifier = modifier,
         navController = navController,
@@ -118,6 +148,8 @@ fun AppNavHost(
         composable<ChatDest> {
             ChatScreen(
                 SampleData.conversationSample,
+                profileName,
+                profilePicture,
                 onNavigateToSettings = {
                     navController.navigate(route = SettingsDest)
                 }
@@ -125,7 +157,16 @@ fun AppNavHost(
         }
         composable<SettingsDest> {
             SettingsScreen(
-                onNavigateToChat = {
+                profileName,
+                profilePicture,
+                onChangeProfileName = { newName ->
+                    nameFile.writeBytes(newName.toByteArray())
+                    profileName = nameFile.readBytes().decodeToString()
+                },
+                onChangeProfilePicture = {
+                    pfpPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                onNavigateBack = {
                     navController.navigate(route = ChatDest) {
                         popUpTo(ChatDest) { inclusive = true }
                     }
@@ -134,42 +175,3 @@ fun AppNavHost(
         }
     }
 }
-
-@Preview(name = "Light Mode")
-@Preview(
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    showBackground = true,
-    name = "Dark Mode"
-)
-@Composable
-fun PreviewMessageCard() {
-    MCProjectTheme {
-        Surface {
-            MessageCard(
-                msg = Message("Kamppi", "Hey, take a look at Jetpack Compose, it's great!")
-            )
-        }
-    }
-}
-
-//@Preview
-//@Composable
-//fun PreviewChat() {
-//    MCProjectTheme {
-//        Surface {
-//            Chat(
-//                SampleData.conversationSample
-//            )
-//        }
-//    }
-//}
-
-//@Preview
-//@Composable
-//fun PreviewProfileSettings() {
-//    MCProjectTheme {
-//        Surface {
-//            ProfileSettings()
-//        }
-//    }
-//}

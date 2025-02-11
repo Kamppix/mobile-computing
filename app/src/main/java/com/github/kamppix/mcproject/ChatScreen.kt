@@ -1,5 +1,6 @@
 package com.github.kamppix.mcproject
 
+import android.content.res.Configuration
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.border
@@ -7,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,16 +30,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import java.io.File
+import com.github.kamppix.mcproject.ui.theme.MCProjectTheme
 
 
 data class Message(val author: String, val body: String)
 
 @Composable
-fun MessageCard(msg: Message, profilePicture: File? = null) {
+fun MessageCard(msg: Message, profilePicture: String? = null) {
     Row(modifier = Modifier.padding(all = 12.dp)) {
         AsyncImage(
             model = profilePicture,
@@ -85,18 +87,14 @@ fun MessageCard(msg: Message, profilePicture: File? = null) {
 }
 
 @Composable
-fun Chat(messages: List<Message>) {
-    val context = LocalContext.current
-
-    val nameFile = File(context.filesDir, "profileName")
-    val profileName by remember {
-        mutableStateOf(nameFile.readBytes().decodeToString())
-    }
-    val pictureFile = File(context.filesDir, "profilePicture")
-
+fun Chat(
+    messages: List<Message>,
+    profileName: String,
+    profilePicture: String
+) {
     LazyColumn {
         items(messages) { message ->
-            MessageCard(Message(profileName, message.body), pictureFile)
+            MessageCard(Message(profileName, message.body), profilePicture)
         }
     }
 }
@@ -104,6 +102,8 @@ fun Chat(messages: List<Message>) {
 @Composable
 fun ChatScreen(
     messages: List<Message>,
+    profileName: String,
+    profilePicture: String,
     onNavigateToSettings: () -> Unit
 ) {
     AppLayout(
@@ -115,6 +115,52 @@ fun ChatScreen(
             }
         }
     ) {
-        Chat(messages)
+        Chat(messages, profileName, profilePicture)
+    }
+}
+
+@Preview(name = "Light Mode")
+@Preview(
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true,
+    name = "Dark Mode"
+)
+@Composable
+fun PreviewMessageCard() {
+    MCProjectTheme {
+        Surface {
+            MessageCard(
+                msg = Message("Kamppi", "Hey, take a look at Jetpack Compose, it's great!")
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun PreviewChat() {
+    MCProjectTheme {
+        Surface {
+            Chat(
+                SampleData.conversationSample,
+                "Kamppi",
+                ""
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun PreviewChatScreen() {
+    MCProjectTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            ChatScreen(
+                SampleData.conversationSample,
+                "Kamppi",
+                "",
+                onNavigateToSettings = {}
+            )
+        }
     }
 }
