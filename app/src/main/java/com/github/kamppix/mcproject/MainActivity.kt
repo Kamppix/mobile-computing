@@ -1,6 +1,13 @@
 package com.github.kamppix.mcproject
 
 import SampleData
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -28,6 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -41,11 +51,143 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        requestPermissions()
+        createNotificationChannel()
+
         setContent {
             MCProjectTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppNavHost()
                 }
+            }
+        }
+    }
+
+    private fun requestPermissions() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+                .launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun createNotificationChannel() {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        notificationManager.createNotificationChannel(NotificationChannel(
+            "test",
+            "Test notifications",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ))
+    }
+
+    private fun sendTestNotification() {
+        // Check permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+
+        // Initialize intent
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Build notification
+        val builder = NotificationCompat.Builder(this, "test")
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setContentTitle("Test notification")
+            .setContentText("This is a test notification!")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("This is a test notification! You are reading this test notification because it was sent to you."))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        // Send notification
+        NotificationManagerCompat.from(this).notify(0, builder.build())
+    }
+
+    @Serializable
+    object ChatDest
+    @Serializable
+    object SettingsDest
+
+    @Composable
+    fun AppNavHost(
+        modifier: Modifier = Modifier,
+        navController: NavHostController = rememberNavController(),
+        startDestination: Any = ChatDest
+    ) {
+        val context = LocalContext.current
+
+        // Init name
+        val nameFile = File(context.filesDir, "profileName")
+        if (!nameFile.exists()) nameFile.writeBytes("User".toByteArray())
+        var profileName by remember { mutableStateOf(nameFile.readBytes().decodeToString()) }
+
+        // Init picture
+        val pictureUriFile = File(context.filesDir, "profilePictureUri")
+        if (!pictureUriFile.exists()) pictureUriFile.writeBytes("".toByteArray())
+        var profilePicture by remember { mutableStateOf(pictureUriFile.readBytes().decodeToString()) }
+
+        val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            if (uri != null) {
+                // Delete old picture if exists
+                val oldFile = File(Uri.parse(profilePicture).path ?: "")
+                if (oldFile.exists()) oldFile.delete()
+
+                // Copy picked image to new file location
+                val resolver = context.contentResolver
+                val newFile = File(context.filesDir, "pfp-${System.currentTimeMillis()}")
+                resolver.openInputStream(uri).use { stream ->
+                    stream?.copyTo(newFile.outputStream())
+                }
+
+                // Write new picture URI to file
+                pictureUriFile.writeBytes(newFile.toUri().toString().toByteArray())
+                profilePicture = pictureUriFile.readBytes().decodeToString()
+            }
+        }
+
+        NavHost(
+            modifier = modifier,
+            navController = navController,
+            startDestination = startDestination
+        ) {
+            composable<ChatDest> {
+                ChatScreen(
+                    SampleData.conversationSample,
+                    profileName,
+                    profilePicture,
+                    onNavigateToSettings = {
+                        sendTestNotification()
+                        navController.navigate(route = SettingsDest)
+                    }
+                )
+            }
+            composable<SettingsDest> {
+                SettingsScreen(
+                    profileName,
+                    profilePicture,
+                    onChangeProfileName = { newName ->
+                        nameFile.writeBytes(newName.toByteArray())
+                        profileName = nameFile.readBytes().decodeToString()
+                    },
+                    onChangeProfilePicture = {
+                        pfpPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                    onNavigateBack = {
+                        navController.navigate(route = ChatDest) {
+                            popUpTo(ChatDest) { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }
@@ -95,83 +237,5 @@ fun VerticalCenter(
         verticalAlignment = Alignment.CenterVertically
     ) {
         item()
-    }
-}
-
-@Serializable
-object ChatDest
-@Serializable
-object SettingsDest
-
-@Composable
-fun AppNavHost(
-    modifier: Modifier = Modifier,
-    navController: NavHostController = rememberNavController(),
-    startDestination: Any = ChatDest
-    ) {
-    val context = LocalContext.current
-
-    // Init name
-    val nameFile = File(context.filesDir, "profileName")
-    if (!nameFile.exists()) nameFile.writeBytes("User".toByteArray())
-    var profileName by remember { mutableStateOf(nameFile.readBytes().decodeToString()) }
-
-    // Init picture
-    val pictureUriFile = File(context.filesDir, "profilePictureUri")
-    if (!pictureUriFile.exists()) pictureUriFile.writeBytes("".toByteArray())
-    var profilePicture by remember { mutableStateOf(pictureUriFile.readBytes().decodeToString()) }
-
-    val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            // Delete old picture if exists
-            val oldFile = File(Uri.parse(profilePicture).path ?: "")
-            if (oldFile.exists()) oldFile.delete()
-
-            // Copy picked image to new file location
-            val resolver = context.contentResolver
-            val newFile = File(context.filesDir, "pfp-${System.currentTimeMillis()}")
-            resolver.openInputStream(uri).use { stream ->
-                stream?.copyTo(newFile.outputStream())
-            }
-
-            // Write new picture URI to file
-            pictureUriFile.writeBytes(newFile.toUri().toString().toByteArray())
-            profilePicture = pictureUriFile.readBytes().decodeToString()
-        }
-    }
-
-    NavHost(
-        modifier = modifier,
-        navController = navController,
-        startDestination = startDestination
-    ) {
-        composable<ChatDest> {
-            ChatScreen(
-                SampleData.conversationSample,
-                profileName,
-                profilePicture,
-                onNavigateToSettings = {
-                    navController.navigate(route = SettingsDest)
-                }
-            )
-        }
-        composable<SettingsDest> {
-            SettingsScreen(
-                profileName,
-                profilePicture,
-                onChangeProfileName = { newName ->
-                    nameFile.writeBytes(newName.toByteArray())
-                    profileName = nameFile.readBytes().decodeToString()
-                },
-                onChangeProfilePicture = {
-                    pfpPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                onNavigateBack = {
-                    navController.navigate(route = ChatDest) {
-                        popUpTo(ChatDest) { inclusive = true }
-                    }
-                }
-            )
-        }
     }
 }

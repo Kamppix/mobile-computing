@@ -66,4 +66,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     implementation("io.coil-kt.coil3:coil-compose:3.0.4")
+
+    implementation("androidx.activity:activity-ktx:1.8.0")
 }
