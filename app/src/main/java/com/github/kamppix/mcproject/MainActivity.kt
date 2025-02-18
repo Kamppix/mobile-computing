@@ -8,6 +8,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -48,7 +52,12 @@ import kotlinx.serialization.Serializable
 import java.io.File
 
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), SensorEventListener {
+
+    private lateinit var sensorManager: SensorManager
+    private var lightSensor: Sensor? = null
+    private var prevLightValue = -1f
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -62,6 +71,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+        if (lightSensor != null) prevLightValue = lightSensor!!.maximumRange
     }
 
     private fun requestPermissions() {
@@ -102,15 +115,61 @@ class MainActivity : ComponentActivity() {
         val builder = NotificationCompat.Builder(this, "test")
             .setSmallIcon(R.drawable.ic_launcher_background)
             .setContentTitle("Test notification")
-            .setContentText("This is a test notification!")
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText("This is a test notification! You are reading this test notification because it was sent to you."))
+            .setContentText("This is a test notification! You are reading this test notification because it was sent to you.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
 
         // Send notification
         NotificationManagerCompat.from(this).notify(0, builder.build())
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_LIGHT) {
+            val lux = event.values[0]
+
+            if (lux != prevLightValue) {
+                if (lux == event.sensor.maximumRange) {
+                    // Check permission
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+
+                    // Initialize intent
+                    val pendingIntent = PendingIntent.getActivity(
+                        this, 0,
+                        Intent(this, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        },
+                        PendingIntent.FLAG_IMMUTABLE
+                    )
+
+                    // Build notification
+                    val builder = NotificationCompat.Builder(this, "test")
+                        .setSmallIcon(R.drawable.ic_launcher_background)
+                        .setContentTitle("Light sensor maxed")
+                        .setContentText("The light sensor has reached its max value!")
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setContentIntent(pendingIntent)
+                        .setAutoCancel(true)
+
+                    // Send notification
+                    NotificationManagerCompat.from(this).notify(1, builder.build())
+                }
+
+                // Save value
+                prevLightValue = event.values[0]
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
+        // Ignore
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lightSensor?.also {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
     }
 
     @Serializable
