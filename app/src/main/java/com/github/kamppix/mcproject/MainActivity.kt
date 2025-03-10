@@ -61,7 +61,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        requestPermissions()
         createNotificationChannel()
 
         setContent {
@@ -75,17 +74,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
         if (lightSensor != null) prevLightValue = lightSensor!!.maximumRange
-    }
-
-    private fun requestPermissions() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
-                .launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 
     private fun createNotificationChannel() {
@@ -195,6 +183,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         if (!pictureUriFile.exists()) pictureUriFile.writeBytes("".toByteArray())
         var profilePicture by remember { mutableStateOf(pictureUriFile.readBytes().decodeToString()) }
 
+        // Create pfp picker
         val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) {
                 // Delete old picture if exists
@@ -203,7 +192,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
                 // Copy picked image to new file location
                 val resolver = context.contentResolver
-                val newFile = File(context.filesDir, "pfp-${System.currentTimeMillis()}")
+                val newFile = File(context.filesDir, "pfp_${System.currentTimeMillis()}")
                 resolver.openInputStream(uri).use { stream ->
                     stream?.copyTo(newFile.outputStream())
                 }

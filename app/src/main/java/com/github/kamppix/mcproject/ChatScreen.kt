@@ -119,12 +119,7 @@ fun ChatScreen(
     }
 }
 
-@Preview(name = "Light Mode")
-@Preview(
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    showBackground = true,
-    name = "Dark Mode"
-)
+@Preview
 @Composable
 fun PreviewMessageCard() {
     MCProjectTheme {
@@ -150,7 +145,12 @@ fun PreviewChat() {
     }
 }
 
-@Preview
+@Preview(name = "Light Mode")
+@Preview(
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true,
+    name = "Dark Mode"
+)
 @Composable
 fun PreviewChatScreen() {
     MCProjectTheme {
