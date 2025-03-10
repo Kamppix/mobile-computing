@@ -179,7 +179,6 @@ fun AudioSettings() {
     var isRecording by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var recorder: MediaRecorder? = null
-    var player: MediaPlayer? = null
 
     // Permission request
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -218,7 +217,7 @@ fun AudioSettings() {
 
                 // Start playback
                 isPlaying = true
-                player = MediaPlayer().apply {
+                MediaPlayer().apply {
                     try {
                         setDataSource(audioFilePath)
                         prepare()
