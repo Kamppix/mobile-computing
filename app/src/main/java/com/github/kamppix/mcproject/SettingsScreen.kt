@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -199,6 +200,19 @@ fun AudioSettings() {
                     e.printStackTrace()
                 } catch (e: IllegalStateException) {
                     e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    // Stop recording when leaving screen
+    DisposableEffect(Unit) {
+        onDispose {
+            if (isRecording) {
+                isRecording = false
+                recorder?.apply {
+                    stop()
+                    release()
                 }
             }
         }
